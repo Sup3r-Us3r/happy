@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_flutter/screens/create_orphanage.dart';
+import 'package:mobile_flutter/screens/home_screen.dart';
 import 'package:mobile_flutter/screens/orphange_details.dart';
 
 void main() {
   runApp(MaterialApp(
     debugShowCheckedModeBanner: false,
     title: 'Happy',
-    home: OrphanageDetails(),
+    home: HomeScreen(),
     theme: ThemeData(
       fontFamily: 'Nunito',
       primaryColor: Color(0xFFF9FAFC),
