@@ -32,13 +32,13 @@ class _CreateOrphanageState extends State<CreateOrphanage> {
       String fileExtension = filename.split('.').last;
 
       FormData formData = FormData.fromMap({
-        'name': 'Send test name',
+        'name': _nameController.value,
         'latitude': 111111,
         'longitude': 222222,
-        'about': 'Send test about',
-        'instructions': 'Send test instructions',
-        'opening_hours': 'Send test Opening Hours',
-        'open_on_weekends': true,
+        'about': _aboutController.value,
+        'instructions': _instructionsController.value,
+        'opening_hours': _openingHoursController.value,
+        'open_on_weekends': _toggleSwitch,
         'images': await MultipartFile.fromFile(
           imagePath,
           filename: filename,
