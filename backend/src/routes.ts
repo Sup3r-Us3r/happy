@@ -10,7 +10,7 @@ routes.get('/orphanages', OrphanageController.index);
 routes.get('/orphanages/:id', OrphanageController.show);
 routes.post(
   '/orphanages',
-  multerConfig.array('images'),
+  multerConfig.array('images[]'),
   OrphanageController.create
 );
 

@@ -4,8 +4,16 @@ import 'dart:io';
 import 'package:http_parser/http_parser.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong/latlong.dart';
+import 'package:mobile_flutter/screens/home_screen.dart';
+import 'package:mobile_flutter/screens/select_on_map.dart';
+import 'package:toast/toast.dart';
 
 class CreateOrphanage extends StatefulWidget {
+  final LatLng coordinates;
+
+  CreateOrphanage({this.coordinates});
+
   @override
   _CreateOrphanageState createState() => _CreateOrphanageState();
 }
@@ -15,46 +23,65 @@ class _CreateOrphanageState extends State<CreateOrphanage> {
   final TextEditingController _aboutController = TextEditingController();
   final TextEditingController _instructionsController = TextEditingController();
   final TextEditingController _openingHoursController = TextEditingController();
-
   Dio dio = new Dio();
   bool _toggleSwitch = true;
-  File _image;
   List<File> _listImages = [];
+  List<MultipartFile> _imagesForUpload = [];
 
-  void _handleSubmit(String imagePath) async {
+  void _handleGoBack(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => SelectOnMap()),
+    );
+  }
+
+  void _handleClose(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => HomeScreen()),
+    );
+  }
+
+  void _handleSubmit(BuildContext context) async {
     try {
       const String baseUrl = 'http://192.168.2.8:3333';
-      Response response = await dio.get('$baseUrl/orphanages');
-      print(response.data);
-
-      // Images
-      String filename = imagePath.split('/').last;
-      String fileExtension = filename.split('.').last;
 
       FormData formData = FormData.fromMap({
-        'name': _nameController.value,
-        'latitude': 111111,
-        'longitude': 222222,
-        'about': _aboutController.value,
-        'instructions': _instructionsController.value,
-        'opening_hours': _openingHoursController.value,
+        'name': _nameController.text,
+        'latitude': widget.coordinates.latitude,
+        'longitude': widget.coordinates.longitude,
+        'about': _aboutController.text,
+        'instructions': _instructionsController.text,
+        'opening_hours': _openingHoursController.text,
         'open_on_weekends': _toggleSwitch,
-        'images': await MultipartFile.fromFile(
-          imagePath,
-          filename: filename,
-          contentType: MediaType('image', fileExtension),
-        ),
-        'type': 'image/$fileExtension',
+        'images': _imagesForUpload,
       });
 
-      Response response2 = await dio.post(
+      Response response = await dio.post(
         '$baseUrl/orphanages',
         data: formData,
         options: Options(
           contentType: 'multipart/form-data',
         ),
       );
-      print(response2.data);
+
+      if (response.statusCode != 201) {
+        throw new Error();
+      } else {
+        Toast.show(
+          'Orfanato criado com sucesso!',
+          context,
+          textColor: Colors.white,
+          backgroundColor: Theme.of(context).accentColor,
+          duration: 3,
+          gravity: Toast.TOP,
+        );
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => HomeScreen()),
+        );
+      }
     } catch (err) {
       print(err);
     }
@@ -65,10 +92,23 @@ class _CreateOrphanageState extends State<CreateOrphanage> {
 
     setState(() {
       if (image.path != null) {
-        _image = File(image.path);
         _listImages.add(File(image.path));
+        _handleUpload(image.path);
       }
     });
+  }
+
+  void _handleUpload(String imagePath) {
+    String _filename = imagePath.split('/').last;
+    String _fileExtension = _filename.split('/').last;
+
+    _imagesForUpload.add(
+      MultipartFile.fromFileSync(
+        imagePath,
+        filename: _filename,
+        contentType: MediaType('image', _fileExtension),
+      ),
+    );
   }
 
   Container _containerField(TextField child,
@@ -86,7 +126,7 @@ class _CreateOrphanageState extends State<CreateOrphanage> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(
-          color: Colors.green[100],
+          color: Color(0xFFD3E2E5),
           width: 1.2,
         ),
         borderRadius: BorderRadius.all(Radius.circular(20.0)),
@@ -156,12 +196,12 @@ class _CreateOrphanageState extends State<CreateOrphanage> {
           ),
           centerTitle: true,
           leading: IconButton(
+            onPressed: () => _handleGoBack(context),
             icon: Icon(
               Icons.chevron_left,
               color: Theme.of(context).accentColor,
               size: 35.0,
             ),
-            onPressed: () {},
           ),
           actions: [
             IconButton(
@@ -170,7 +210,7 @@ class _CreateOrphanageState extends State<CreateOrphanage> {
                 color: Color(0xFFFF669D),
                 size: 28.0,
               ),
-              onPressed: () {},
+              onPressed: () => _handleClose(context),
             ),
           ],
           backgroundColor: Theme.of(context).primaryColor,
@@ -385,10 +425,10 @@ class _CreateOrphanageState extends State<CreateOrphanage> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.all(Radius.circular(20.0)),
                   child: RaisedButton(
-                    onPressed: () {},
+                    onPressed: () => _handleSubmit(context),
                     elevation: 0.0,
                     child: Text(
-                      'Próximo',
+                      'Criar orfanato',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.white,

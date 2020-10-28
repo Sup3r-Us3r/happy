@@ -1,11 +1,74 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:mobile_flutter/screens/home_screen.dart';
+import 'package:mobile_flutter/widgets/map_detail.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class OrphanageDetails extends StatefulWidget {
+  final int id;
+
+  OrphanageDetails({this.id});
+
   @override
   _OrphanageDetailsState createState() => _OrphanageDetailsState();
 }
 
 class _OrphanageDetailsState extends State<OrphanageDetails> {
+  Map _orphanage = new Map();
+  List _orphanageImages = [];
+  bool _openOnWeekends = true;
+  double _latitude = 0.0;
+  double _longitude = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _getOrphanage().then((orphanage) {
+      for (var image in orphanage['images']) {
+        _orphanageImages.add(image);
+      }
+
+      setState(() {
+        _orphanage = orphanage;
+        _openOnWeekends = orphanage['open_on_weekends'];
+        _latitude = orphanage['latitude'];
+        _longitude = orphanage['longitude'];
+      });
+    });
+  }
+
+  Future<Map> _getOrphanage() async {
+    Dio dio = new Dio();
+    final String baseUrl = 'http://192.168.2.8:3333';
+
+    Response response = await dio.get('$baseUrl/orphanages/${widget.id}');
+
+    return response.data;
+  }
+
+  void _handleGoBack(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => HomeScreen()),
+    );
+  }
+
+  Future _handleOpenWhatsApp() async {
+    final String _phone = '5500912345678';
+    final String _message = 'Em que posso ajudar?';
+    final String _whatsappUrl = Platform.isAndroid
+        ? 'whatsapp://send?phone=+$_phone&text=${Uri.parse(_message)}'
+        : 'whatsapp://wa.me/$_phone/?text=${Uri.parse(_message)}';
+
+    if (await canLaunch(_whatsappUrl)) {
+      launch(_whatsappUrl);
+    } else {
+      throw 'Could not launch url.';
+    }
+  }
+
   Container _slideImages(BuildContext context) {
     return Container(
       height: 300.0,
@@ -13,13 +76,16 @@ class _OrphanageDetailsState extends State<OrphanageDetails> {
       color: Colors.transparent,
       child: PageView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: 3,
+        itemCount: _orphanageImages.length,
         itemBuilder: (BuildContext context, int index) {
-          return Image.network(
-            'https://bit.ly/34iZYM0',
-            fit: BoxFit.cover,
-            width: MediaQuery.of(context).size.width,
-          );
+          final image = _orphanageImages != null ? _orphanageImages[index] : '';
+          return _orphanage != null
+              ? Image.network(
+                  image['url'],
+                  fit: BoxFit.cover,
+                  width: MediaQuery.of(context).size.width,
+                )
+              : Container();
         },
       ),
     );
@@ -94,7 +160,7 @@ class _OrphanageDetailsState extends State<OrphanageDetails> {
             color: Theme.of(context).accentColor,
             size: 35.0,
           ),
-          onPressed: () {},
+          onPressed: () => _handleGoBack(context),
         ),
         backgroundColor: Theme.of(context).primaryColor,
       ),
@@ -114,7 +180,7 @@ class _OrphanageDetailsState extends State<OrphanageDetails> {
                 children: [
                   SizedBox(height: 20.0),
                   Text(
-                    'Orfanato',
+                    '${_orphanage['name']}',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: Colors.blueGrey,
@@ -123,12 +189,19 @@ class _OrphanageDetailsState extends State<OrphanageDetails> {
                   ),
                   SizedBox(height: 10.0),
                   Text(
-                    'Presta assistência a crianças de 06 a 15 anos que se encontre em situação de risco e/ou vulnerabilidade social.',
+                    '${_orphanage['about']}',
                     style: TextStyle(
                       color: Colors.blueGrey,
                       fontSize: 18.0,
                     ),
                   ),
+                  SizedBox(height: 20.0),
+                  _latitude != 0.0
+                      ? MapDetail(
+                          latitude: _latitude,
+                          longitude: _longitude,
+                        )
+                      : SizedBox(),
                   Divider(
                     height: 40.0,
                     color: Colors.grey[400],
@@ -144,7 +217,7 @@ class _OrphanageDetailsState extends State<OrphanageDetails> {
                   ),
                   SizedBox(height: 10.0),
                   Text(
-                    'Venha quando sentir a vontade, e traga muito amor e paciência para dar.',
+                    '${_orphanage['instructions']}',
                     style: TextStyle(
                       color: Colors.blueGrey,
                       fontSize: 18.0,
@@ -155,21 +228,30 @@ class _OrphanageDetailsState extends State<OrphanageDetails> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _cardInfo(
-                        'Segunda à Sexta de 8h às 18h',
+                        '${_orphanage['opening_hours']}',
                         Colors.blueGrey,
                         Icons.access_time,
                         Theme.of(context).accentColor,
                         [Color(0xFFE6F7FB), Color(0xFFFFFFFF)],
-                        Colors.green[400],
+                        Color(0xFFB3DAE2),
                       ),
-                      _cardInfo(
-                        'Não atendemos fim de semana',
-                        Color(0xFFFF669D),
-                        Icons.info_outline,
-                        Color(0xFFFF669D),
-                        [Color(0xFFFCEFF4), Color(0xFFFFFFFF)],
-                        Color(0xFFFFBCD4),
-                      ),
+                      _openOnWeekends
+                          ? _cardInfo(
+                              'Atendemos fim de semana',
+                              Color(0xFF37C77F),
+                              Icons.access_time,
+                              Color(0xFF37C77F),
+                              [Color(0xFFEDFFF6), Color(0xFFFFFFFF)],
+                              Color(0xFFA1E9C5),
+                            )
+                          : _cardInfo(
+                              'Não atendemos fim de semana',
+                              Color(0xFFFF669D),
+                              Icons.info_outline,
+                              Color(0xFFFF669D),
+                              [Color(0xFFFCEFF4), Color(0xFFFFFFFF)],
+                              Color(0xFFFFBCD4),
+                            ),
                     ],
                   ),
                   SizedBox(height: 40.0),
@@ -183,7 +265,7 @@ class _OrphanageDetailsState extends State<OrphanageDetails> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.all(Radius.circular(20.0)),
                       child: RaisedButton(
-                        onPressed: () {},
+                        onPressed: () => _handleOpenWhatsApp(),
                         color: Color(0xFF3CDC8C),
                         highlightColor: Colors.transparent,
                         child: Row(

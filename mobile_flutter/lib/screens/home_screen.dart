@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong/latlong.dart';
+import 'dart:async';
+import 'package:dio/dio.dart';
+import 'package:mobile_flutter/screens/orphange_details.dart';
+import 'package:mobile_flutter/screens/select_on_map.dart';
+
+import '../models/orphange_model.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -8,25 +14,93 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  MapController _mapController = MapController();
+  List<Marker> _markersOnMap = [];
+  int _togglePopup;
 
-  bool _infoWindowVisible = false;
+  @override
+  void initState() {
+    super.initState();
 
-  void _selectOnMap() {
-    // _mapController;
-  }
+    _togglePopup = -1;
 
-  void _handleToggleWindow() {
-    setState(() {
-      _infoWindowVisible = !_infoWindowVisible;
+    _getOrphanages().then((data) {
+      for (var orphanage in data) {
+        _markersOnMap.add(
+          Marker(
+            height: 60.0,
+            width: 300.0,
+            point: LatLng(orphanage['latitude'], orphanage['longitude']),
+            builder: (BuildContext context) {
+              return Stack(
+                children: [
+                  _popupMarker(context, orphanage['id'], orphanage['name']),
+                  _marker(orphanage['id']),
+                ],
+              );
+            },
+          ),
+        );
+      }
+
+      setState(() {
+        _markersOnMap = _markersOnMap;
+      });
     });
   }
 
-  Opacity _popupMarker(BuildContext context) {
+  Future<List> _getOrphanages() async {
+    Dio dio = new Dio();
+    final String baseUrl = 'http://192.168.2.8:3333';
+
+    Response response = await dio.get('$baseUrl/orphanages');
+
+    return (response.data as List)
+        .map((data) => Orphanage.fromJson(data).toJson())
+        .toList();
+  }
+
+  void _handleToggleWindow(int id) {
+    setState(() {
+      _togglePopup = id;
+    });
+  }
+
+  void _handleNavigateToOrphanageDetails(BuildContext context, int id) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => OrphanageDetails(id: id)),
+    );
+  }
+
+  void _handleNavigateToSelectOnMap(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => SelectOnMap()),
+    );
+  }
+
+  Opacity _marker(int id) {
     return Opacity(
-      opacity: _infoWindowVisible ? 1.0 : 0.0,
+      opacity: _togglePopup == id ? 0.0 : 1.0,
       child: GestureDetector(
-        onTap: () => _handleToggleWindow(),
+        onTap: () => _handleToggleWindow(id),
+        child: Container(
+          alignment: Alignment.bottomCenter,
+          child: Image.asset(
+            'assets/images/map-marker.png',
+            height: 60.0,
+            width: 60.0,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Opacity _popupMarker(BuildContext context, int id, String name) {
+    return Opacity(
+      opacity: _togglePopup == id ? 1.0 : 0.0,
+      child: GestureDetector(
+        onTap: () => _handleToggleWindow(id),
         child: Stack(
           alignment: Alignment.center,
           overflow: Overflow.visible,
@@ -46,7 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     width: 170.0,
                     child: Text(
-                      'Orfanato',
+                      '$name',
                       style: TextStyle(
                         fontSize: 18.0,
                         fontWeight: FontWeight.bold,
@@ -61,7 +135,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: Theme.of(context).accentColor,
                       highlightColor: Colors.transparent,
                       elevation: 0.0,
-                      onPressed: () {},
+                      onPressed: () =>
+                          _handleNavigateToOrphanageDetails(context, id),
                       child: Icon(
                         Icons.arrow_forward,
                         color: Colors.white,
@@ -86,23 +161,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Opacity _marker() {
-    return Opacity(
-      opacity: _infoWindowVisible ? 0.0 : 1.0,
-      child: GestureDetector(
-        onTap: () => _handleToggleWindow(),
-        child: Container(
-          alignment: Alignment.bottomCenter,
-          child: Image.asset(
-            'assets/images/map-marker.png',
-            height: 60.0,
-            width: 60.0,
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -110,10 +168,14 @@ class _HomeScreenState extends State<HomeScreen> {
         alignment: Alignment.center,
         children: [
           FlutterMap(
-            mapController: _mapController,
             options: MapOptions(
               center: LatLng(-19.6264507, -43.2339631),
               zoom: 13.0,
+              onTap: (_) {
+                setState(() {
+                  _togglePopup = -1;
+                });
+              },
             ),
             layers: [
               TileLayerOptions(
@@ -125,21 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               MarkerLayerOptions(
-                markers: [
-                  Marker(
-                    height: 60.0,
-                    width: 300.0,
-                    point: LatLng(-19.6264507, -43.2339631),
-                    builder: (BuildContext context) {
-                      return Stack(
-                        children: [
-                          _popupMarker(context),
-                          _marker(),
-                        ],
-                      );
-                    },
-                  ),
-                ],
+                markers: _markersOnMap != null ? _markersOnMap : [],
               ),
             ],
           ),
@@ -150,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 60.0,
               width: MediaQuery.of(context).size.width * 0.9,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Colors.white.withOpacity(0.1),
                 borderRadius: BorderRadius.all(Radius.circular(20.0)),
               ),
               child: Row(
@@ -160,11 +208,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   Padding(
                     padding: EdgeInsets.only(left: 20.0),
                     child: Text(
-                      '3 orfanatos encontrados',
+                      '${_markersOnMap.length} orfanatos encontrados',
                       style: TextStyle(
                         fontSize: 20.0,
                         fontWeight: FontWeight.w600,
-                        color: Colors.blueGrey[300],
+                        color: Colors.white,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -175,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.all(Radius.circular(20.0)),
                       child: RaisedButton(
-                        onPressed: () {},
+                        onPressed: () => _handleNavigateToSelectOnMap(context),
                         color: Theme.of(context).accentColor,
                         highlightColor: Colors.transparent,
                         elevation: 0.0,
