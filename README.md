@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/static/v1?label=STACK&message=React%20-%20NodeJS&color=15C3D6&labelColor=000000" alt="Stack" />
+  <img src="https://img.shields.io/static/v1?label=STACK&message=React%20-%20NodeJS%20-%20Flutter&color=15C3D6&labelColor=000000" alt="Stack" />
 
   <img alt="License" src="https://img.shields.io/static/v1?label=LICENSE&message=MIT&color=15C3D6&labelColor=000000">
 </p>
@@ -30,6 +30,7 @@ This project was developed with the following technologies:
 - [React Native](https://facebook.github.io/react-native)
 - [Expo](https://expo.io)
 - [TypeScript](https://www.typescriptlang.org)
+- [Flutter](https://flutter.dev)
 
 ## 💻 Project
 
